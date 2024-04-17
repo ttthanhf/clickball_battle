@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click ball battle</title>
+    <style>
+        html,
+        body {
+            padding: 0;
+            margin: 0;
+            user-select: none;
+            overflow-y: hidden;
+            overflow-x: hidden;
+        }
+
+        .container-item {
+            display: inline-block;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #player1 {
+            top: 200px;
+            left: 200px;
+        }
+
+        #player2 {
+            top: 200px;
+            left: 600px;
+        }
+
+        #player3 {
+            top: 400px;
+            left: 400px;
+        }
+
+        #player4 {
+            top: 20px;
+            left: 800px;
+        }
+
+        #ball {
+            top: 200px;
+            left: 400px;
+        }
+
+        .targetPlayer {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-header">
+        <div style="text-align: center;">
+            <span id="history-point" style="font-size: 30px;">0</span>
+        </div>
+    </div>
+    <div class="container">
+        <div class="container-item player" id="player1">
+            <div class="hitbox">
+                <div class="core-player">1</div>
+            </div>
+        </div>
+        <div class="container-item player" id="player2">
+            <div class="hitbox">
+                <div class="core-player">2</div>
+            </div>
+        </div>
+        <div class="container-item player" id="player3">
+            <div class="hitbox">
+                <div class="core-player">3</div>
+            </div>
+        </div>
+        <div class="container-item player" id="player4">
+            <div class="hitbox">
+                <div class="core-player">4</div>
+            </div>
+        </div>
+        <div id="ball" class="container-item">
+            <div class="hitbox" style="width: 20px; height: 20px;">
+                <div class="core-ball">o</div>
+            </div>
+        </div>
+    </div>
+    <!-- <div class="skill-container">
+        <img src="./2360218-200.png"><div></div>
+    </div> -->
+</body>
+<script>
+
+    let startStep = 500;
+    let acceleration = 500;
+    let maxStep = 2500;
+    let clickCountDown = 1000;
+    let allowClick = true;
+    let smoothStep = 5000;
+
+    let clickDetected = false;
+
+    function whenNoClick() {
+        clickDetected = false;
+    }
+
+    function whenClick() {
+        if (allowClick) {
+            clickDetected = true;
+            allowClick = false;
+            setInterval(() => { allowClick = true }, clickCountDown)
+        }
+    }
+
+    document.addEventListener('mouseup', (e) => {
+        whenNoClick()
+    });
+    document.addEventListener('mousedown', (e) => {
+        whenClick()
+    });
+
+    document.addEventListener('touchend', (e) => {
+        whenNoClick()
+    });
+    document.addEventListener('touchstart', (e) => {
+        whenClick()
+    });
+
+    function getRandomPlayer(excludePlayer) {
+        const players = document.querySelectorAll('.player');
+        const availablePlayers = Array.from(players).filter(player => player.id !== excludePlayer.id);
+        const randomIndex = Math.floor(Math.random() * availablePlayers.length);
+        return availablePlayers[randomIndex];
+    }
+
+    function updatePosBall(x, y) {
+        document.querySelector('#ball').style.left = x + "px";
+        document.querySelector('#ball').style.top = y + "px";
+    }
+
+    function updateHistoryPoint() {
+        let historyPointElement = document.querySelector('#history-point')
+        historyPointElement.innerHTML = parseInt(historyPointElement.innerHTML) + 1
+    }
+
+    function moveBall(ball, player, step, time) {
+
+        const currentTime = Date.now();
+        const elapsedTime = currentTime - time;
+
+        const posPlayer = player.getBoundingClientRect();
+        const posBall = ball.getBoundingClientRect();
+
+        const dx = (posPlayer.x) - posBall.x;
+        const dy = (posPlayer.y) - posBall.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        let newStep;
+        if (step > maxStep) {
+            newStep = step = maxStep
+        }
+        else {
+            step = newStep = step + step / acceleration;
+        }
+
+        if (distance < 20 && clickDetected) {
+            allowClick = true;
+
+            updateHistoryPoint()
+
+            player.classList.remove('targetPlayer');
+            const randomPlayer = getRandomPlayer(player);
+            randomPlayer.classList.add('targetPlayer');
+
+            requestAnimationFrame(() => moveBall(ball, randomPlayer, newStep, currentTime));
+            return;
+        }
+        if (distance < 10) {
+            document.title = "cook"
+            return
+        }
+
+        if (distance > 1) {
+            const normalizedDx = dx / distance;
+            const normalizedDy = dy / distance;
+
+            posBall.x += normalizedDx * step * (elapsedTime / smoothStep);
+            posBall.y += normalizedDy * step * (elapsedTime / smoothStep);
+
+            updatePosBall(posBall.x, posBall.y)
+
+            requestAnimationFrame(() => moveBall(ball, player, newStep, currentTime));
+        }
+    }
+
+    const randomPlayer = getRandomPlayer({ id: 0 });
+    randomPlayer.classList.add('targetPlayer');
+    let ball = document.querySelector('#ball');
+
+    requestAnimationFrame(() => moveBall(ball, randomPlayer, startStep, Date.now()));
+
+</script>
+
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click ball battle</title>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            user-select: none;
+            overflow-y: hidden;
+            overflow-x: hidden;
+        }
+
+        .container-item {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            position: absolute;
+        }
+
+        .lobby {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .label_content {
+            display: none;
+        }
+
+
+        .label_content_detail {
+            font-size: 5dvw;
+            font-weight: bold;
+        }
+
+        #ball {
+            background-color: gray;
+            border-radius: 100%;
+            border: 1px black solid;
+        }
+
+        .player {
+            background-color: red;
+            border: 1px black solid;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="game" style="width: 100dvw; height: 100dvh; position: relative;">
+        </div>
+        <div class="lobby">
+            <div class="content">
+                <div class="label_content enter_player_name">
+                    <span class="label_content_detail" id="enter_player_name_label">Your username: </span>
+                    <br>
+                    <input type="text" name="playername" id="enter_player_name_text"
+                        style="width: 30vw; height: 6vh; font-size: 2vw;">
+                    <br>
+                    <br>
+                    <button id="enter_player_name_button"
+                        style="width: 30vw; height: 6vh; font-size: 5vh;">Enter</button>
+                </div>
+                <div class="label_content waiting_other_player_container">
+                    <span class="label_content_detail" id="waiting_other_player_label">Waiting other
+                        player </span>
+                    <span class="label_content_detail" id="waiting_other_player_dot">
+                    </span>
+                </div>
+                <div class="label_content countdown_until_game_start">
+                    <span class="label_content_detail" id="countdown_until_game_start_label">Game
+                        will
+                        start
+                        in </span>
+                    <span class="label_content_detail" id="countdown_until_game_start_time"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<!-- <script>document.querySelector('.enter_player_name').style.display = "block";</script> -->
+
+</html>

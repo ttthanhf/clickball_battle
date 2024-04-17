@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click ball battle</title>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            user-select: none;
+            overflow-y: hidden;
+            overflow-x: hidden;
+        }
+
+        .container-item {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            position: absolute;
+        }
+
+        .lobby {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .label_content {
+            display: none;
+        }
+
+        .label_content_detail {
+            font-size: 5dvw;
+            font-weight: bold;
+        }
+
+        #ball {
+            background-color: gray;
+            border-radius: 100%;
+            border: 1px black solid;
+        }
+
+        .player {
+            background-color: red;
+            border: 1px black solid;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="game" style="width: 100dvw; height: 100dvh; position: relative;">
+        </div>
+        <div class="lobby">
+            <div class="content">
+                <div class="label_content enter_player_name">
+                    <span class="label_content_detail" id="enter_player_name_label">Your username: </span>
+                    <br>
+                    <input type="text" name="playername" id="enter_player_name_text"
+                        style="width: 30vw; height: 6vh; font-size: 2vh;">
+                    <br>
+                    <br>
+                    <button id="enter_player_name_button"
+                        style="width: 30vw; height: 6vh; font-size: 5vh;">Enter</button>
+                </div>
+                <div class="label_content connect_server">
+                    <span class="label_content_detail" id="connect_server_label">Connecting ...</span>
+                </div>
+                <div class="label_content waiting_other_player_container">
+                    <span class="label_content_detail" id="waiting_other_player_label">Waiting other
+                        player </span>
+                    <span class="label_content_detail" id="waiting_dot_other_player"></span>
+                </div>
+                <div class="label_content countdown_until_game_start">
+                    <span class="label_content_detail" id="countdown_until_game_start_label">Game
+                        will
+                        start
+                        in </span>
+                    <span class="label_content_detail" id="countdown_until_game_start_time"></span>
+                </div>
+                <div class="label_content winner">
+                    <span class="label_content_detail" id="winner_label">Winner is </span>
+                    <span class="label_content_detail" id="winner_name"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+<script id="global_var">
+    var player_id;
+    var is_waiting = false;
+    var is_game_start = false;
+    var player_targeted_id = "";
+    var game_data = {
+        entities: {}
+    };
+    var is_player_death = false;
+</script>
+<script id="util">
+    function parse_json(str) {
+        let data;
+        try {
+            data = JSON.parse(str);
+        }
+        catch (e) {
+            data = str;
+        }
+        return data;
+    }
+
+    function parse_string(obj) {
+        let data;
+        try {
+            data = JSON.stringify(obj);
+        }
+        catch (e) {
+            data = obj;
+        }
+        return data;
+    }
+
+</script>
+<script>
+    function waiting_dot_effect(id) {
+        let dot_effect_interval;
+        if (is_waiting) {
+            let count_dot = 1;
+            dot_effect_interval = setInterval(() => {
+                let dot = "";
+                for (let i = 0; i < count_dot; i++) {
+                    dot += ".";
+                }
+                document.querySelector(`#${id}`).innerHTML = dot;
+                if (count_dot > 2) {
+                    count_dot = 1;
+                } else {
+                    count_dot++;
+                }
+                if (!is_waiting) {
+                    clearInterval(dot_effect_interval);
+                }
+            }, 800);
+        }
+        else {
+            clearInterval(dot_effect_interval);
+        }
+    }
+
+    function hide_all_label_content() {
+        document.querySelectorAll(".label_content").forEach(element => {
+            element.style.display = "none";
+        });
+    }
+
+    function sendWS(msg) {
+        wss.send(parse_string(msg));
+    }
+</script>
+<script id="position_util">
+    function get_real_position(value, axis) {
+        if (axis == "x") {
+            let x = window.innerWidth * (value / 100);
+            return x;
+        }
+        else if (axis == "y") {
+            let y = window.innerHeight * (value / 100);
+            return y;
+        }
+    }
+
+    function update_entity_position(id) {
+        let entity = document.querySelector(`#${id}`);
+        if (entity) {
+            let position_x = game_data.entities[id].position.x;
+            let position_y = game_data.entities[id].position.y;
+            let x = get_real_position(position_x, "x");
+            let y = get_real_position(position_y, "y");
+            entity.style.left = `${x}px`;
+            entity.style.top = `${y}px`;
+        }
+    }
+
+    function set_entity_position(id, position) {
+        if (!game_data.entities[id]) {
+            game_data.entities[id] = { position };
+        } else {
+            game_data.entities[id].position = position;
+        }
+    }
+
+    function update_all_entity_position() {
+        update_entity_position("ball");
+        document.querySelectorAll('.player').forEach(player => {
+            update_entity_position(player.id);
+        });
+    }
+</script>
+<script>
+    function set_size_all_entity() {
+        document.querySelectorAll(`.entity`).forEach(entity => {
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+
+            const sizePercentage = 5;
+
+            const size = Math.min(screenWidth, screenHeight) * (sizePercentage / 100);
+
+            entity.style.width = size + 'px';
+            entity.style.height = size + 'px';
+        });
+    }
+
+    function remove_entity(id) {
+        let entity = document.querySelector(`#${id}`);
+        if (entity) {
+            entity.remove();
+        }
+    }
+
+    function remove_all_entity() {
+        document.querySelectorAll(".entity").forEach(entity => {
+            entity.remove();
+        });
+    }
+
+</script>
+<script>
+    function reset_game() {
+        player_targeted_id = "";
+        is_player_death = false;
+    }
+</script>
+<script>
+    let wss;
+    function connect_server(player_name) {
+        wss = new WebSocket('ws://localhost:7071/ws');
+        wss.onopen = function (ws) {
+            wss.onmessage = function (data) {
+                let msg = parse_json(data.data);
+                if (msg.action == "create_new_player") {
+                    player_id = msg.data.player.id;
+                    sendWS({ action: "set_player_name", data: { player: { name: player_name, id: player_id } } });
+                }
+                else if (msg.action == "label_no_entity") {
+                    hide_all_label_content();
+                    remove_all_entity();
+                    if (msg.data.name == "waiting_other_player") {
+                        document.querySelector('.waiting_other_player_container').style.display = "block";
+                        is_game_start = false;
+                        if (!is_waiting) {
+                            is_waiting = true;
+                            waiting_dot_effect("waiting_dot_other_player");
+                        }
+                    }
+                    else if (msg.data.name == "countdown_until_game_start") {
+                        is_waiting = false;
+                        document.querySelector('.countdown_until_game_start').style.display = "block";
+                        document.querySelector('#countdown_until_game_start_time').innerHTML = msg.data.time;
+                    }
+                }
+                else if (msg.action == "game_start") {
+                    hide_all_label_content();
+                    reset_game();
+                    // is_game_start = true;
+                }
+                else if (msg.action == "summon_ball") {
+                    remove_entity("ball");
+                    let ball = msg.data.ball;
+                    let position_x = get_real_position(ball.position.x, "x");
+                    let position_y = get_real_position(ball.position.y, "y");
+                    let ball_dom = `
+                <div id="ball" class="container-item ball entity" style="top: ${position_x}px; left: ${position_y}px;"></div>
+                `
+                    document.querySelector('.game').innerHTML += ball_dom
+                    set_size_all_entity();
+                    set_entity_position("ball", ball.position);
+                    update_entity_position("ball");
+                }
+                else if (msg.action == "summon_player") {
+                    let player = msg.data.player;
+                    let position_x = get_real_position(player.position.x, "x");
+                    let position_y = get_real_position(player.position.y, "y");
+                    let player_dom = `
+                <div class="container-item player entity" id="${player.id}" style="top: ${position_x}px; left: ${position_y}px;">
+                    <div class="hitbox">
+                        <div class="core-player"></div>
+                    </div>
+                </div>
+                `
+                    document.querySelector('.game').innerHTML += player_dom
+                    set_size_all_entity();
+                    set_entity_position(player.id, player.position);
+                    update_entity_position(player.id);
+                }
+                else if (msg.action == "player_click") {
+                    let player = msg.data.player;
+                    set_entity_position(player.id, player.position);
+                    update_entity_position(player.id);
+                }
+                else if (msg.action == "move_ball") {
+                    player_targeted_id = msg.data.player.id;
+                    set_entity_position("ball", msg.data.ball.position);
+                    update_entity_position("ball");
+                }
+                else if (msg.action == "ball_hit_player") {
+                    remove_entity(msg.data.player.id);
+                    if (msg.data.player.id == player_id) {
+                        is_player_death = true;
+                    }
+                }
+                else if (msg.action == "winner") {
+                    hide_all_label_content();
+                    remove_all_entity();
+                    document.querySelector('.winner').style.display = "block";
+                    document.querySelector('#winner_name').innerHTML = msg.data.player.name;
+                }
+            }
+        }
+    }
+</script>
+<script>
+    function handle_click(e) {
+        //player click
+        if (is_game_start) {
+            if (is_player_death || player_targeted_id == player_id) {
+                return;
+            }
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            const x = (clientX / window.innerWidth) * 100;
+            const y = (clientY / window.innerHeight) * 100;
+            sendWS({ action: "player_click", data: { player: { id: player_id, position: { x, y } } } });
+            e.preventDefault();
+        }
+    }
+
+    function resize() {
+        update_all_entity_position();
+        set_size_all_entity();
+    }
+</script>
+<script>
+    window.addEventListener('resize', resize);
+    window.addEventListener('load', resize);
+
+    document.addEventListener('mousedown', (e) => {
+        handle_click(e);
+    });
+    document.addEventListener('touchstart', (e) => {
+        handle_click(e);
+    }, { passive: false });
+
+    document.querySelector('#enter_player_name_button').addEventListener('click', () => {
+        let text = document.querySelector('#enter_player_name_text').value.trim();
+        if (text) {
+            connect_server(text);
+            hide_all_label_content();
+            document.querySelector('.connect_server').style.display = "block";
+        }
+        else {
+            document.querySelector('#enter_player_name_label').innerHTML = "Player name cannot blank";
+        }
+    });
+
+    window.addEventListener('load', (event) => {
+        hide_all_label_content();
+        document.querySelector('.enter_player_name').style.display = 'block';
+    });
+
+    // window.addEventListener('orientationchange', function () {
+    //     if (window.orientation === 90 || window.orientation === -90) {
+    //         console.log('Đã xoay điện thoại ngang');
+    //     } else {
+    //         console.log('Đã xoay điện thoại dọc');
+    //     }
+    // });
+</script>
+</html>
